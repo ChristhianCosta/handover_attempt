@@ -1,0 +1,80 @@
+-- Usando como base o exemplo cttc-3gpp-channel-example.cc do 5g-lena
+
+    O exemplo já dá uma estrutura de gNBs e UE assim como mobilidade
+
+-- O problema
+
+    a função enableTraces() gera arquivos sobre as estátisticas da simulação, em RxPacketTrace.txt devia mostrar CellId mudando de 1 para 3 (informação obtida de checaNode), mas isso não ocorre e a SINR chega a -30db o que indica que o handover não está ocorrendo
+
+-- modificações
+
+    1. Adicionado o flowmonitor
+
+        1.1 flowmon-parse-results.py é o script para analizar o xml criado pelo flowmonitor, quando executo ele mostra 5 fluxos, mas pelo que entendi são 4 de controle e o FlowID: 5 tem as informações do fluxo de interesse - vide os ips e portas descritos
+
+    2. Funções de suporte de informação foram adicionadas para testar o que ocorre no cenário
+
+        2.1 ondeTa - recebe um node e mostra o vetor de posição dele, ela funciona por agendamento do simulador e agenda a si mesma
+
+        2.2 organizar - recebe um caminho e pega arquivos gerados pela função de enableTraces que joga tudo na raíz do ns3, aí ela joga os arquivos cujos nomes estejam na lista da função (mas não coloquei todos)
+
+        2.3 checaNode - trás informações a cerca dos nodes para saber se estão funcionando
+    
+        Essas funções não são sempre usadas, mas me ajudaram a saber o que estava ocorrendo em partes do teste
+
+    3. adição da configuração de handover
+
+        3.1 SetHandoverAlgorithmType, SetHandoverAlgorithmAttribute, SetHandoverAlgorithmAttribute
+
+        3.2 Adição de interface Xn | X2 que é um link entre as gNBs para trocarem informaçõesdos Users para handover
+
+            nrEpcHelper->AddX2Interface(gnbNodes.Get(0), gnbNodes.Get(1));
+            nrHelper->AttachToClosestGnb(ueNetDev, gnbNetDev);
+    
+    4. mudança na quantidade de pacotes enviados, nas características o cenário envia envia uma quantidade absurda de dados então a menos que a quantidade de pacotes seja suficiente a simulação fica sem ter o que fazer e encerra antes do UE chegar em um ponto onde handover poderia ocorrer
+
+-- entendimento do exemplo
+
+    1. após a função main o exemplo define as variáveis principais que serão usadas no cenário
+
+    2. tem um bloco que começa com "CommandLine " que existe para na execução do exemplo ser possível mudar as variáveis ao invés de ter de editar o script direto
+
+    3. bloco de logging que só ativa dependendo da variável
+
+    4. Lê a variável de cenário para determinar a altura das gNB e do UE (acho que um case-switch poderia caber melhor aqui)
+
+    5. cria os containers de nodes e os nodes desses containers
+
+        5.1 define características de mobilidade, por exemplo gNB que ficam paradas devem ter:
+
+                gnbMobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+        
+        5.2 a mobilidade do UE depende de das variáveis mobility e speed
+
+    6. configuração dos auxiliares que são "containers" de métodos que auxiliam na configuração, nrHelper sendo o principal que até recebe os helpers de Beamforming (idealBeamformingHelper) e EPC (nrEpcHelper)
+
+    7. configuração de handover como algoritmo e atributos
+
+        7.1 RRC ideal ou real - essa parte ainda não entendo bem, mas são estados que o ns3 assume para a simulação como se mensagens de controle podem ter delay ou serem perdidas - em uma situação ideal coisas assim não acontecem, mas no real pode ser diferente.
+
+        A questão é que isso interage com o handover de alguma forma que eu ainda não entendi, mas se eu mudo pra não usar ideal a simulação quebra.
+
+    8. configuração do canal - definições de espectro, banda, portadora
+
+    9. configuração das antenas, elas tem NumRows e NumColumns pois funcionam como uma malha ou matriz de peças distribuidas da forma definida
+
+    10. Instalação dos dispositivos de rede
+
+        "randomStream" esse bloco é para garantir que valores aleatórios que simulador precise não vão se sobrepor, mas vão repetir em outra rodada de simulação - pelo menos isso que entendi
+        
+    11. determinação de porta, ip e aplicação
+
+    12. configuração da interface X2
+
+    13. funções de informação
+
+-- nr-handover.cc
+
+    é um código postado em um forum do google do 5G-lena onde a pessoa teve dificuldades similares, tem a maioria das configurações parecidas e modifiquei um pouco, mas no geral apresenta o mesmo problema
+        
+        
